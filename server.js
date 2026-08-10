@@ -232,6 +232,31 @@ app.post('/api/view/:id', (req, res) => {
   res.json({ views: v.views });
 });
 
+// Delete a single video (admin)
+app.delete('/api/video/:id', (req, res) => {
+  if (!req.isAdmin) return res.status(401).json({ error: 'Unauthorized' });
+  const idx = library.findIndex(v => v.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'not found' });
+  library.splice(idx, 1);
+  ingest.saveLibrary(library);
+  reload();
+  res.json({ ok: true });
+});
+
+// Bulk delete videos (admin) — body: { ids: [...] }
+app.post('/api/videos/delete', (req, res) => {
+  if (!req.isAdmin) return res.status(401).json({ error: 'Unauthorized' });
+  const ids = Array.isArray(req.body && req.body.ids) ? req.body.ids.map(String) : [];
+  if (!ids.length) return res.status(400).json({ error: 'No ids provided' });
+  const set = new Set(ids);
+  const before = library.length;
+  library = library.filter(v => !set.has(v.id));
+  const deleted = before - library.length;
+  ingest.saveLibrary(library);
+  reload();
+  res.json({ ok: true, deleted });
+});
+
 // Ingest: JSON array / TXT list
 app.post('/api/ingest', async (req, res) => {
   if (!req.isAdmin) return res.status(401).json({ error: 'Unauthorized' });

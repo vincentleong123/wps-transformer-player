@@ -1,12 +1,14 @@
 <% if (!videos.length) { %>
-<tr><td colspan="4" style="text-align:center;color:var(--wps-muted);padding:24px">Library is empty.</td></tr>
+<tr><td colspan="6" style="text-align:center;color:var(--wps-muted);padding:24px">Library is empty.</td></tr>
 <% } else { %>
 <% videos.forEach(function(v){ %>
-<tr>
+<tr data-id="<%= v.id %>">
+  <td><input type="checkbox" class="row-check" value="<%= v.id %>"></td>
   <td><a href="/watch/<%= v.id %>"><%= v.title %></a></td>
   <td style="color:var(--wps-muted);font-size:12px"><%= v.external ? 'hotlink' : 'local' %></td>
   <td><%= v.duration %></td>
   <td><%= v.views || 0 %></td>
+  <td><button class="btn ghost danger del-single" data-id="<%= v.id %>" data-title="<%= v.title %>">Delete</button></td>
 </tr>
 <% }); %>
 <% } %>

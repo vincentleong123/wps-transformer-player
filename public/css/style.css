@@ -102,6 +102,10 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 .btn.ghost:hover { border-color: var(--wps-accent); color: var(--wps-text); box-shadow: none; }
 
+.btn.danger { background: transparent; border: 1px solid rgba(255, 80, 80, 0.4); color: #ff6b6b; box-shadow: none; }
+.btn.danger:hover { border-color: #ff6b6b; color: #ff6b6b; box-shadow: none; }
+.btn.danger:disabled { opacity: 0.6; cursor: not-allowed; }
+
 .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
 .file-upload { position: relative; overflow: hidden; cursor: pointer; }

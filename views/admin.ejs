@@ -40,8 +40,11 @@ https://another-site.com/embed/xyz
 
   <div class="admin-card">
     <h3>Library (<%= total %>)</h3>
+    <div style="margin:0 0 10px;display:flex;gap:10px;align-items:center">
+      <button class="btn ghost danger" id="bulkDeleteBtn" disabled>Delete selected (<span id="selCount">0</span>)</button>
+    </div>
     <table class="admin-table">
-      <thead><tr><th>Title</th><th>Source</th><th>Duration</th><th>Views</th></tr></thead>
+      <thead><tr><th><input type="checkbox" id="checkAll" title="Select all"></th><th>Title</th><th>Source</th><th>Duration</th><th>Views</th><th>Actions</th></tr></thead>
       <tbody>
         <%- include('_rows') %>
       </tbody>
@@ -99,6 +102,57 @@ https://another-site.com/embed/xyz
         report('files: ' + (d.files || 0) + '\nadded: ' + (r.added || 0) + '\nskipped: ' + (r.skipped || 0) + '\nfailed: ' + (r.failed || 0), r.failed ? 'bad' : 'good');
         if (r.added) setTimeout(function(){ location.reload(); }, 1200);
       }).catch(function(e){ btn.disabled = false; report('Network error: ' + e.message, 'bad'); });
+  });
+
+  // ── delete controls ──
+  function selCheckboxes() { return Array.prototype.slice.call(document.querySelectorAll('.row-check')); }
+  function selected() { return selCheckboxes().filter(function(c){ return c.checked; }); }
+
+  function updateSel() {
+    var n = selected().length;
+    document.getElementById('selCount').textContent = n;
+    document.getElementById('bulkDeleteBtn').disabled = n === 0;
+    document.getElementById('checkAll').checked = n > 0 && n === selCheckboxes().length;
+  }
+
+  var checkAll = document.getElementById('checkAll');
+  if (checkAll) {
+    checkAll.addEventListener('change', function(){
+      selCheckboxes().forEach(function(c){ c.checked = checkAll.checked; });
+      updateSel();
+    });
+  }
+  selCheckboxes().forEach(function(c){ c.addEventListener('change', updateSel); });
+
+  function doDelete(ids, done) {
+    var btn = document.getElementById('bulkDeleteBtn');
+    var prev = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Deleting...';
+    fetch('/api/videos/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: ids })
+    }).then(function(r){ return r.json(); }).then(function(d){
+      btn.textContent = prev;
+      if (!d.ok) return report('ERROR: ' + (d.error || 'unknown'), 'bad');
+      report('deleted: ' + d.deleted, 'good');
+      done(d);
+    }).catch(function(e){ btn.disabled = false; btn.textContent = prev; report('Network error: ' + e.message, 'bad'); });
+  }
+
+  document.getElementById('bulkDeleteBtn').addEventListener('click', function(){
+    var ids = selected().map(function(c){ return c.value; });
+    if (!ids.length) return;
+    if (!confirm('Delete ' + ids.length + ' selected video(s)? This cannot be undone.')) return;
+    doDelete(ids, function(){ location.reload(); });
+  });
+
+  document.querySelectorAll('.del-single').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var id = btn.getAttribute('data-id');
+      if (!confirm('Delete "' + btn.getAttribute('data-title') + '"? This cannot be undone.')) return;
+      doDelete([id], function(){ location.reload(); });
+    });
   });
 })();
 </script>
