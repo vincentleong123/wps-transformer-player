@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — <%= siteName %></title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<main class="admin-wrap" style="max-width:400px">
+  <h1 style="margin-bottom:20px">Admin Login</h1>
+  <% if (error) { %><p class="err-msg"><%= error %></p><% } %>
+  <form method="POST" action="/admin/login">
+    <div class="admin-card">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" class="admin-input" autofocus>
+      <div style="margin-top:14px"><button class="btn" type="submit">Login</button></div>
+    </div>
+  </form>
+</main>
+</body>
+</html>

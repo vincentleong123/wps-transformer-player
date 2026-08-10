@@ -1,0 +1,232 @@
+# Global Souin cache defaults (in-memory storage)
+{
+	cache {
+		log_level warn
+		default_cache_control public
+	}
+}
+
+# ── Existing sites (unchanged) ──
+:8120 {
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy no-referrer-when-downgrade
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	encode zstd gzip
+
+	handle_path /thumbnails/* {
+		root * C:/thumbnails
+		header {
+			Access-Control-Allow-Origin "*"
+			Cross-Origin-Resource-Policy "cross-origin"
+			Cache-Control "public, max-age=2592000"
+		}
+		file_server
+	}
+
+	@nocache path /raw/* /api/* /admin/*
+	route @nocache {
+		reverse_proxy localhost:7004
+	}
+
+	@cacheable {
+		not path /raw/* /api/* /admin/*
+	}
+	route @cacheable {
+		cache {
+			ttl 2m
+			stale 30s
+		}
+		reverse_proxy localhost:7004
+	}
+}
+
+:8121 {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	handle_path /videos/* {
+		root * C:/Users/User/Desktop/hentai_videos
+		header {
+			Access-Control-Allow-Origin "*"
+			Cross-Origin-Resource-Policy "cross-origin"
+			X-Robots-Tag "noindex, nofollow"
+			Cache-Control "public, max-age=604800"
+		}
+		file_server
+	}
+
+	handle_path /thumbnails/* {
+		root * C:/thumbnails
+		header {
+			Access-Control-Allow-Origin "*"
+			Cross-Origin-Resource-Policy "cross-origin"
+			Cache-Control "public, max-age=2592000"
+		}
+		file_server
+	}
+
+	handle_path /previews/* {
+		root * C:/Users/User/Desktop/hentai_previews
+		header {
+			Access-Control-Allow-Origin "*"
+			Cross-Origin-Resource-Policy "cross-origin"
+			Cache-Control "public, max-age=2592000"
+		}
+		file_server
+	}
+
+	@nocache path /admin* /api/* /chat*
+	route @nocache {
+		reverse_proxy localhost:7007
+	}
+
+	@cacheable {
+		not path /videos/* /thumbnails/* /previews/* /admin* /api* /chat*
+	}
+	route @cacheable {
+		cache {
+			ttl 1m
+			stale 30s
+		}
+		reverse_proxy localhost:7007
+	}
+
+	@static path *.css *.js *.png *.jpg *.jpeg *.gif *.ico *.svg *.webp
+	header @static Cache-Control "public, max-age=604800, must-revalidate"
+}
+
+:8122 {
+	encode zstd gzip
+
+	handle_path /videos/* {
+		root * E:/videos
+		header {
+			Access-Control-Allow-Origin "*"
+			Cross-Origin-Resource-Policy "cross-origin"
+			X-Robots-Tag "noindex, nofollow"
+			Cache-Control "public, max-age=604800"
+		}
+		file_server
+	}
+
+	handle_path /thumbnails/* {
+		root * C:/thumbnails
+		header {
+			Access-Control-Allow-Origin "*"
+			Cross-Origin-Resource-Policy "cross-origin"
+			Cache-Control "public, max-age=2592000"
+		}
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	@nocache path /raw/* /api/* /admin*
+	route @nocache {
+		reverse_proxy localhost:7005
+	}
+
+	@cacheable {
+		not path /videos/* /thumbnails/* /raw/* /api/* /admin*
+	}
+	route @cacheable {
+		cache {
+			ttl 1m
+			stale 30s
+		}
+		reverse_proxy localhost:7005
+	}
+
+	@static path *.css *.js *.png *.jpg *.jpeg *.gif *.ico *.svg *.webp
+	header @static Cache-Control "public, max-age=604800, must-revalidate"
+}
+
+:8123 {
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy no-referrer-when-downgrade
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	handle {
+		encode zstd gzip
+		reverse_proxy localhost:8080 {
+			header_up X-Forwarded-Proto https
+			header_up X-Forwarded-Host xmelayu.online
+		}
+	}
+}
+
+# ── NEW: wps-transformer-player (CACHE HOTLINKED VIDEOS) ──
+:8124 {
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		X-XSS-Protection "1; mode=block"
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+
+	encode zstd gzip
+
+	# Cache external video streams (/t/token → external CDN)
+	@video_stream path /t/*
+	route @video_stream {
+		cache {
+			ttl 7d
+			stale 30s
+		}
+		reverse_proxy localhost:7200
+	}
+
+	# Cache local video files (/videos/:id → local MP4)
+	@local_video path /videos/*
+	route @local_video {
+		cache {
+			ttl 7d
+			stale 30s
+		}
+		reverse_proxy localhost:7200
+	}
+
+	# Don't cache admin / API
+	@nocache path /api/* /admin*
+	route @nocache {
+		reverse_proxy localhost:7200
+	}
+
+	# Cache everything else (HTML pages)
+	@cacheable {
+		not path /t/* /videos/* /api/* /admin*
+	}
+	route @cacheable {
+		cache {
+			ttl 5m
+			stale 30s
+		}
+		reverse_proxy localhost:7200
+	}
+}

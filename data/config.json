@@ -1,0 +1,45 @@
+{
+  "port": 7200,
+  "siteName": "WPS Transformer Player",
+  "siteUrl": "http://localhost:7200",
+  "adminPassword": "changeme",
+  "tokenSecret": "C9fc94b16c02a67c3e92a18b0d55e6f6a7c27d2a1f9b4e8c5d0a3f6b9c2e1d4a7",
+  "importsFolder": "data/imports",
+  "autoplayNext": true,
+  "scrub": {
+    "cellW": 160,
+    "cellH": 90,
+    "cols": 5,
+    "rows": 5
+  },
+  "transformer": {
+    "enabled": true,
+    "allowAnyHost": true,
+    "blockedHosts": [],
+    "referer": "",
+    "hostReferers": {
+      "1porn.tv": "https://www.1porn.tv/",
+      "www.1porn.tv": "https://www.1porn.tv/",
+      "xhamster.com": "https://xhamster.com/",
+      "video-nss.xhcdn.com": "https://xhamster.com/"
+    },
+    "resolveTtlMs": 900000,
+    "preflightTimeoutMs": 20000
+  },
+  "ads": {
+    "vastTag": "https://s.magsrv.com/v1/vast.php?idz=5934188",
+    "vastSkipAfter": 5,
+    "displaySlots": [
+      {
+        "name": "juicy-300x286",
+        "enabled": true,
+        "html": "<!-- JuicyAds v3.0 -->\n<script type=\"text/javascript\" data-cfasync=\"false\" async src=\"https://poweredby.jads.co/js/jads.js\"></script>\n<ins id=\"1118846\" data-width=\"308\" data-height=\"286\"></ins>\n<script type=\"text/javascript\" data-cfasync=\"false\" async>(adsbyjuicy = window.adsbyjuicy || []).push({'adzone':1118846});</script>\n<!--JuicyAds END-->"
+      },
+      {
+        "name": "magsrv-outstream",
+        "enabled": true,
+        "html": "<!-- magsrv outstream -->\n<script async type=\"application/javascript\" src=\"https://a.magsrv.com/ad-provider.js\"></script>\n<ins class=\"eas6a97888e37\" data-zoneid=\"5934530\"></ins>\n<script>(AdProvider = window.AdProvider || []).push({\"serve\": {}});</script>"
+      }
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+<% if (!videos.length) { %>
+<tr><td colspan="4" style="text-align:center;color:var(--wps-muted);padding:24px">Library is empty.</td></tr>
+<% } else { %>
+<% videos.forEach(function(v){ %>
+<tr>
+  <td><a href="/watch/<%= v.id %>"><%= v.title %></a></td>
+  <td style="color:var(--wps-muted);font-size:12px"><%= v.external ? 'hotlink' : 'local' %></td>
+  <td><%= v.duration %></td>
+  <td><%= v.views || 0 %></td>
+</tr>
+<% }); %>
+<% } %>

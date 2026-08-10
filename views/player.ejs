@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><%= video.title %> — <%= siteName %></title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="container topbar-inner">
+    <a href="/" class="brand">WPS<span>Transformer</span> Player</a>
+    <nav>
+      <a href="/">All videos</a>
+      <% if (isAdminPage) { %><a href="/admin">Admin</a><% } %>
+    </nav>
+  </div>
+</header>
+
+<main class="container">
+  <div class="watch-layout">
+    <div>
+      <!-- THE PLAYER -->
+      <div class="wps-player"
+           data-src="<%= video.video %>"
+           data-poster="<%= video.thumbnail %>"
+           data-autoplay-next="<%= autoplayNext ? '1' : '0' %>"
+           data-preroll="<%= ads.preroll ? '1' : '0' %>"
+           data-next="<%= next ? '/' + next.id : '' %>"
+           data-next-title="<%= next ? next.title : '' %>"
+           <% if (video.sprites) { %>data-sprites="<%= JSON.stringify(video.sprites) %>"<% } %>>
+        <video id="wpsVideo" playsinline preload="metadata" poster="<%= video.thumbnail %>"></video>
+        <div class="wps-poster" style="background-image:url('<%= video.thumbnail %>')"></div>
+        <div class="wps-center">
+          <button class="wps-big-play" aria-label="Play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+        </div>
+        <div class="wps-loader"></div>
+
+        <div class="wps-controls">
+          <div class="wps-progress-wrap">
+            <div class="wps-preview-bubble"><div class="wps-preview-img"></div><span class="wps-preview-time">0:00</span></div>
+            <div class="wps-progress">
+              <div class="wps-buffered"></div>
+              <div class="wps-played"></div>
+              <div class="wps-thumb"></div>
+            </div>
+          </div>
+          <div class="wps-buttons">
+            <button class="wps-btn" data-act="play" aria-label="Play/Pause"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button>
+            <button class="wps-btn small" data-act="rewind">-10</button>
+            <button class="wps-btn small" data-act="forward">+10</button>
+            <span class="wps-time">0:00 / 0:00</span>
+            <span class="wps-spacer"></span>
+            <div class="wps-volume">
+              <button class="wps-btn" data-act="mute" aria-label="Mute"><svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05A4.5 4.5 0 0 0 16.5 12z"/></svg></button>
+              <input type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume">
+            </div>
+            <div class="wps-menu-wrap">
+              <button class="wps-btn small" data-act="speed">1x</button>
+              <div class="wps-menu" data-menu="speed"></div>
+            </div>
+            <div class="wps-menu-wrap">
+              <button class="wps-btn small" data-act="quality">Auto</button>
+              <div class="wps-menu" data-menu="quality"></div>
+            </div>
+            <button class="wps-btn" data-act="pip" aria-label="Picture in Picture"><svg viewBox="0 0 24 24"><path d="M19 7h-8v6h8V7zm2 9H3V5h18v11zM1 3h22v15H1V3z"/></svg></button>
+            <button class="wps-btn" data-act="fs" aria-label="Fullscreen"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg></button>
+          </div>
+        </div>
+
+        <div class="wps-ad">
+          <div class="wps-ad-badge">AD</div>
+          <div class="wps-ad-skip"></div>
+        </div>
+      </div>
+
+      <div class="watch-info">
+        <h1><%= video.title %></h1>
+        <div class="watch-meta">
+          <span><%= video.views || 0 %> views</span>
+          <% if (video.duration) { %><span><%= video.duration %></span><% } %>
+          <% if (video.category) { %><span class="chip"><%= video.category %></span><% } %>
+          <% if (video.external) { %><span class="chip">Hotlink</span><% } %>
+        </div>
+        <div class="watch-desc"><%= video.description %></div>
+        <% if (video.tags && video.tags.length) { %>
+        <div class="watch-tags"><% video.tags.forEach(function(t){ %><span class="chip">#<%= t %></span><% }); %></div>
+        <% } %>
+        <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+          <% if (prev) { %><a class="btn ghost" href="/watch/<%= prev.id %>">&#8592; Prev</a><% } %>
+          <% if (next) { %><a class="btn" href="/watch/<%= next.id %>">Next &#8594;</a><% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- sidebar display ad slots -->
+    <aside>
+      <% ads.displaySlots.forEach(function(slot){ %>
+        <div class="ad-slot side">
+          <% if (slot.html) { %><%- slot.html %><% } else { %><span class="ad-label">Advertisement</span><% } %>
+        </div>
+      <% }); %>
+    </aside>
+  </div>
+
+  <% if (ads.displaySlots.length && playlist.length) { %>
+  <div class="ad-slot">
+    <span class="ad-label">Advertisement</span>
+  </div>
+  <% } %>
+
+  <h2 class="related-title">More videos</h2>
+  <div class="grid">
+    <% playlist.forEach(function(v){ %>
+    <a href="/watch/<%= v.id %>" class="card">
+      <div class="thumb">
+        <% if (v.thumbnail) { %><img src="<%= v.thumbnail %>" alt="<%= v.title %>" loading="lazy"><% } %>
+        <% if (v.duration) { %><span class="dur"><%= v.duration %></span><% } %>
+        <% if (v.external) { %><span class="ext-badge">HOTLINK</span><% } %>
+      </div>
+      <div class="card-body"><h3><%= v.title %></h3><div class="card-meta"><%= v.views || 0 %> views</div></div>
+    </a>
+    <% }); %>
+  </div>
+</main>
+
+<script src="/js/hls.min.js"></script>
+<script src="/js/player.js"></script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — <%= siteName %></title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="container topbar-inner">
+    <a href="/" class="brand">WPS<span>Transformer</span> Player</a>
+    <nav>
+      <a href="/">View site</a>
+    </nav>
+  </div>
+</header>
+
+<main class="admin-wrap">
+  <h1 style="margin:0 0 20px">Admin</h1>
+
+  <div class="admin-card">
+    <h3>Feed URLs — paste a list</h3>
+    <p style="font-size:13px;color:var(--wps-muted);margin:0 0 8px">
+      One per line, or JSON. Supports <code>Title | https://url</code>, a bare URL, or a full <code>&lt;iframe src=...&gt;&lt;/iframe&gt;</code> embed. Lines starting with <code>#</code> are ignored.
+    </p>
+    <label for="ingestText">URL list</label>
+    <textarea id="ingestText" class="admin-input" placeholder="# comment
+My Video | https://example.com/video-page
+https://another-site.com/embed/xyz
+<iframe src='https://tube.com/xembed.php?video=abc'></iframe>"></textarea>
+    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <button class="btn" id="ingestBtn">Import</button>
+      <label class="btn ghost file-upload">Upload file<input type="file" id="ingestFile" accept=".txt,.json,text/plain,application/json"></label>
+      <button class="btn ghost" id="scanBtn">Scan data/imports folder</button>
+    </div>
+    <pre class="ingest-report" id="ingestReport"></pre>
+  </div>
+
+  <div class="admin-card">
+    <h3>Library (<%= total %>)</h3>
+    <table class="admin-table">
+      <thead><tr><th>Title</th><th>Source</th><th>Duration</th><th>Views</th></tr></thead>
+      <tbody>
+        <%- include('_rows') %>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+(function(){
+  function report(msg, cls) {
+    var el = document.getElementById('ingestReport');
+    el.textContent = msg;
+    el.className = 'ingest-report' + (cls ? ' ' + cls : '');
+  }
+
+  document.getElementById('ingestBtn').addEventListener('click', function(){
+    var text = document.getElementById('ingestText').value;
+    if (!text.trim()) return report('Paste something first.');
+    var btn = this; btn.disabled = true; btn.textContent = 'Importing...';
+    fetch('/api/ingest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: text
+    }).then(function(r){ return r.json(); }).then(function(d){
+      btn.disabled = false; btn.textContent = 'Import';
+      if (!d.ok) return report('ERROR: ' + (d.error || 'unknown'));
+      var errs = (d.errors || []).map(function(e){ return '  x ' + (e.url || e.file || '?') + ' — ' + (e.error || 'fail'); });
+      var out = 'total: ' + d.total + '\nadded: ' + d.added + '\nskipped (dupes): ' + d.skipped + '\nfailed: ' + d.failed;
+      if (errs.length) out += '\n' + errs.join('\n');
+      report(out, d.failed ? 'bad' : 'good');
+      if (d.added) setTimeout(function(){ location.reload(); }, 1200);
+    }).catch(function(e){ btn.disabled = false; btn.textContent = 'Import'; report('Network error: ' + e.message, 'bad'); });
+  });
+
+  var fileInput = document.getElementById('ingestFile');
+  fileInput.addEventListener('change', function(){
+    var f = fileInput.files[0];
+    if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function(){
+      document.getElementById('ingestText').value = fr.result;
+      document.getElementById('ingestBtn').click();
+    };
+    fr.readAsText(f);
+  });
+
+  document.getElementById('scanBtn').addEventListener('click', function(){
+    var btn = this; btn.disabled = true;
+    fetch('/api/ingest/scan', { method: 'POST' })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        btn.disabled = false;
+        if (!d.ok) return report('ERROR: ' + d.error, 'bad');
+        var r = d.report || {};
+        report('files: ' + (d.files || 0) + '\nadded: ' + (r.added || 0) + '\nskipped: ' + (r.skipped || 0) + '\nfailed: ' + (r.failed || 0), r.failed ? 'bad' : 'good');
+        if (r.added) setTimeout(function(){ location.reload(); }, 1200);
+      }).catch(function(e){ btn.disabled = false; report('Network error: ' + e.message, 'bad'); });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+# WPS Transformer Player — sample list
+# One entry per line: "Title | URL" or a bare URL / <iframe> embed.
+# Lines starting with # are ignored.
+
+1porn.tv direct mp4 (test) | https://www.1porn.tv/bi/get_file/8512/ae71aeedd02b06f5bfd97d5c9190606716966a4c34/93637000/93637450/93637450_720m.mp4/
+xhamster HLS embed (test) | https://xhamster.com/xembed.php?video=xh4I9Rw
