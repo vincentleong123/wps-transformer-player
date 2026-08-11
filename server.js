@@ -58,6 +58,10 @@ app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+// operational stats (request counts, status mix, live viewers) — registered
+// first so every request is counted, including static assets
+app.use(stats.middleware);
+
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '7d', etag: true }));
 app.use((req, res, next) => { res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin'); next(); });
 app.use(express.json({ limit: '6mb' }));
@@ -66,9 +70,6 @@ app.use(express.urlencoded({ extended: true }));
 
 // localhost-only admin: no password required
 app.use((req, res, next) => { req.isAdmin = true; next(); });
-
-// operational stats (request counts, status mix, live viewers)
-app.use(stats.middleware);
 
 // ── library in-memory cache ─────────────────────────────────────────────────
 let library = ingest.loadLibrary();
