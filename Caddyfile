@@ -179,7 +179,7 @@
 	}
 }
 
-# ── NEW: wps-transformer-player (CACHE HOTLINKED VIDEOS) ──
+# ── NEW: wps-transformer-player (CACHE EXTERNAL VIDEOS) ──
 :8124 {
 	header {
 		X-Content-Type-Options nosniff
@@ -212,15 +212,15 @@
 		reverse_proxy localhost:7200
 	}
 
-	# Don't cache admin / API
-	@nocache path /api/* /admin*
+	# Don't cache admin / API / thumbnails / preview clips
+	@nocache path /api/* /admin* /img/* /previews/*
 	route @nocache {
 		reverse_proxy localhost:7200
 	}
 
 	# Cache everything else (HTML pages)
 	@cacheable {
-		not path /t/* /videos/* /api/* /admin*
+		not path /t/* /videos/* /api/* /admin* /img/* /previews/*
 	}
 	route @cacheable {
 		cache {

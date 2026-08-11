@@ -21,6 +21,15 @@
   <h1 style="margin:0 0 20px">Admin</h1>
 
   <div class="admin-card">
+    <h3>Stats</h3>
+    <div class="stat-grid" id="statGrid"></div>
+    <div class="origin-health">
+      <h4>Origin health</h4>
+      <div id="originList"><div class="origin-row muted">Loading…</div></div>
+    </div>
+  </div>
+
+  <div class="admin-card">
     <h3>Feed URLs — paste a list</h3>
     <p style="font-size:13px;color:var(--wps-muted);margin:0 0 8px">
       One per line, or JSON. Supports <code>Title | https://url</code>, a bare URL, or a full <code>&lt;iframe src=...&gt;&lt;/iframe&gt;</code> embed. Lines starting with <code>#</code> are ignored.
@@ -154,6 +163,36 @@ https://another-site.com/embed/xyz
       doDelete([id], function(){ location.reload(); });
     });
   });
+
+  // ── stats strip ──
+  var grid = document.getElementById('statGrid');
+  var originList = document.getElementById('originList');
+  function chip(label, value) { return '<div class="stat-chip"><b>' + value + '</b><span>' + label + '</span></div>'; }
+  function fmtBytes(n) {
+    var u = ['B', 'KB', 'MB', 'GB'], i = 0;
+    while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+    return (n >= 10 ? Math.round(n) : n.toFixed(1)) + ' ' + u[i];
+  }
+  function render(d) {
+    var l = d.library, w = d.window, live = d.live, disk = d.disk;
+    var totalDisk = disk.thumbs + disk.previews + disk.sprites;
+    grid.innerHTML =
+      chip('Videos', l.total) +
+      chip('Broken', l.broken) +
+      chip('Thumbs', l.thumbCached + '/' + l.thumbed) +
+      chip('Previews', l.previewCached + '/' + l.total) +
+      chip('Viewers', live.inFlight) +
+      chip('Req/min', (Math.round(w.reqPerMin * 10) / 10)) +
+      chip('Disk', fmtBytes(totalDisk));
+    originList.innerHTML = (d.origin && d.origin.length)
+      ? d.origin.map(function(h){
+          return '<div class="origin-row' + (h.errors ? ' bad' : '') + '"><b>' + h.host + '</b><span>' + h.requests + ' req · ' + h.errors + ' err' + (h.blocked ? ' · ' + h.blocked + ' blocked' : '') + '</span></div>';
+        }).join('')
+      : '<div class="origin-row muted">No origin requests yet.</div>';
+  }
+  function refresh() { fetch('/api/stats').then(function(r){ return r.json(); }).then(render).catch(function(){}); }
+  refresh();
+  setInterval(refresh, 10000);
 })();
 </script>
 </body>

@@ -5,6 +5,8 @@
   "adminPassword": "changeme",
   "tokenSecret": "C9fc94b16c02a67c3e92a18b0d55e6f6a7c27d2a1f9b4e8c5d0a3f6b9c2e1d4a7",
   "importsFolder": "data/imports",
+  "thumbnailDir": "data/thumbs",
+  "previewDir": "data/previews",
   "autoplayNext": true,
   "scrub": {
     "cellW": 160,

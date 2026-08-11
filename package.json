@@ -7,7 +7,7 @@
     "start": "node server.js",
     "ingest": "node scripts/ingest.js",
     "sprites": "node scripts/generate-sprites.js",
-    "check": "node --check server.js && node --check lib/transformer.js && node --check lib/ingest.js && node --check lib/sprites.js && node --check lib/vast.js && node --check public/js/player.js"
+    "check": "node --check server.js && node --check lib/transformer.js && node --check lib/thumb.js && node --check lib/preview.js && node --check lib/stats.js && node --check lib/ingest.js && node --check lib/sprites.js && node --check lib/vast.js && node --check public/js/player.js"
   },
   "dependencies": {
     "ejs": "^3.1.9",

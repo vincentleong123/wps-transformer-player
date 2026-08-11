@@ -137,6 +137,34 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 
 .admin-card h3 { margin: 0 0 12px; font-size: 18px; }
 
+/* ── admin stats strip ── */
+.stat-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.stat-chip {
+  background: var(--wps-bg-3);
+  border: 1px solid var(--wps-border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 76px;
+}
+.stat-chip b { font-size: 16px; }
+.stat-chip span { font-size: 11px; color: var(--wps-muted); }
+.origin-health h4 { margin: 0 0 8px; font-size: 12px; color: var(--wps-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.origin-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  margin-bottom: 4px;
+}
+.origin-row.bad { color: #ff9c9c; background: rgba(255, 80, 80, 0.08); }
+.origin-row.muted { color: var(--wps-muted); }
+
 .admin-input {
   width: 100%;
   min-height: 120px;

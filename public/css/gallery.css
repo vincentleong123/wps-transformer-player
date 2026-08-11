@@ -845,17 +845,87 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   opacity: 0;
   z-index: 1;
   transition: opacity var(--transition-fast);
-  background: #000;
 }
-.video-card:hover .hover-preview {
+/* keep the thumbnail visible until the preview is actually playing, so the
+   user never sees a black frame while the clip buffers */
+.thumbnail-container .hover-preview.playing {
   opacity: 1;
 }
-.video-card:hover .thumbnail {
-  opacity: 0 !important;
-}
 .thumbnail-container .play-overlay {
-  z-index: 2;
+  z-index: 3;
 }
 .thumbnail-container .duration-badge {
+  z-index: 3;
+}
+
+/* ==========================================
+   HOVER PREVIEW — LOADING STATE
+   ========================================== */
+.hover-loading {
+  position: absolute;
+  inset: 0;
   z-index: 2;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  background: linear-gradient(110deg, rgba(20, 20, 22, 0.55) 40%, rgba(38, 38, 40, 0.55) 50%, rgba(20, 20, 22, 0.55) 60%);
+  background-size: 200% 100%;
+  animation: hover-shimmer 1.4s ease-in-out infinite;
+  overflow: hidden;
+}
+.video-card:hover .hover-loading.show { display: flex; }
+
+@keyframes hover-shimmer {
+  0% { background-position: 130% 0; }
+  100% { background-position: -70% 0; }
+}
+
+.hover-loading-rings {
+  position: relative;
+  width: 44px;
+  height: 44px;
+}
+.hover-loading-rings::before,
+.hover-loading-rings::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-sizing: border-box;
+}
+.hover-loading-rings::before {
+  border-top-color: var(--accent-primary);
+  border-right-color: var(--accent-secondary);
+  animation: hover-spin 0.8s linear infinite;
+}
+.hover-loading-rings::after {
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  animation: hover-pulse 1.2s ease-out infinite;
+}
+
+@keyframes hover-spin { to { transform: rotate(360deg); } }
+@keyframes hover-pulse {
+  0% { transform: scale(0.75); opacity: 0.9; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
+.hover-loading-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+}
+.hover-loading-label::after {
+  content: '';
+  animation: hover-dots 1.2s steps(4, end) infinite;
+}
+@keyframes hover-dots {
+  0% { content: ''; }
+  25% { content: '.'; }
+  50% { content: '..'; }
+  75% { content: '...'; }
 }

@@ -5,7 +5,7 @@
 <tr data-id="<%= v.id %>">
   <td><input type="checkbox" class="row-check" value="<%= v.id %>"></td>
   <td><a href="/watch/<%= v.id %>"><%= v.title %></a></td>
-  <td style="color:var(--wps-muted);font-size:12px"><%= v.external ? 'hotlink' : 'local' %></td>
+  <td style="color:var(--wps-muted);font-size:12px"><%= v.external ? 'xmateur' : 'local' %></td>
   <td><%= v.duration %></td>
   <td><%= v.views || 0 %></td>
   <td><button class="btn ghost danger del-single" data-id="<%= v.id %>" data-title="<%= v.title %>">Delete</button></td>

@@ -115,7 +115,7 @@
     <% playlist.forEach(function(v){ %>
     <a href="/watch/<%= v.id %>" class="card">
       <div class="thumb">
-        <% if (v.thumbnail) { %><img src="<%= v.thumbnail %>" alt="<%= v.title %>" loading="lazy"><% } %>
+        <% if (v.thumbnail) { %><img src="<%= v.thumbnail %>" alt="<%= v.title %>" loading="lazy" onerror="this.style.display='none'"><% } %>
         <% if (v.duration) { %><span class="dur"><%= v.duration %></span><% } %>
         <% if (v.external) { %><span class="ext-badge">HOTLINK</span><% } %>
       </div>

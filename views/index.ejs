@@ -63,17 +63,21 @@
                 <% } else { %>
                 <div class="video-grid" id="videoGrid" role="list" aria-label="Video gallery">
                     <% videos.forEach(function(v){ %>
-                    <% var canPrev = v.video && (!v.type || v.type !== 'hls'); %>
-                    <article class="video-card" data-search="<%= v.title.toLowerCase() %> <%= (v.tags||[]).join(' ').toLowerCase() %> <%= v.category.toLowerCase() %>" data-src="<%= canPrev ? v.video : '' %>" role="listitem">
+                    <% var canPrev = v.preview && (!v.type || v.type !== 'hls'); %>
+                    <article class="video-card" data-search="<%= v.title.toLowerCase() %> <%= (v.tags||[]).join(' ').toLowerCase() %> <%= v.category.toLowerCase() %>" data-prev="<%= canPrev ? v.preview : '' %>" role="listitem">
                         <a href="/watch/<%= v.id %>" class="video-link">
                             <div class="thumbnail-container">
                                 <% if (v.thumbnail) { %>
                                 <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 180'%3E%3Crect fill='%23222' width='320' height='180'/%3E%3C/svg%3E"
                                      data-src="<%= v.thumbnail %>"
                                      alt="<%= v.title %>"
-                                     class="thumbnail lazy-load" width="320" height="180" loading="lazy">
+                                     class="thumbnail lazy-load" width="320" height="180" loading="lazy" onerror="this.style.display='none'">
                                 <% } %>
-                                <% if (canPrev) { %><video class="hover-preview" preload="none" muted playsinline></video><% } %>
+                                <div class="hover-loading" aria-hidden="true">
+                                    <span class="hover-loading-rings"></span>
+                                    <span class="hover-loading-label">Loading preview</span>
+                                </div>
+                                <% if (canPrev) { %><video class="hover-preview" preload="none" muted loop playsinline></video><% } %>
                                 <div class="play-overlay">
                                     <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
                                         <path d="M8 5v14l11-7z"/>
@@ -85,7 +89,7 @@
                                 <h3 class="video-title"><%= v.title %></h3>
                                 <div class="video-meta">
                                     <span class="view-count"><%= v.views %> views</span>
-                                    <% if (v.external) { %><span style="color:var(--accent-secondary);font-size:11px">hotlink</span><% } %>
+                                    <% if (v.external) { %><span style="color:var(--accent-secondary);font-size:11px">xmateur</span><% } %>
                                 </div>
                             </div>
                         </a>
@@ -148,74 +152,54 @@
             sb.addEventListener('click', function(){ window.scrollTo({ top: 0, behavior: 'smooth' }); });
         }
 
-        // ── Hover preview: 10 chopped chunks, END → START ────────────────────
+        // ── Hover preview: play the cached middle-clip (static file) ────────
+        // Each video's ~8s clip is pre-built into data/previews/<id>.mp4 and
+        // served from /previews/<id> with range support — hover previews are
+        // pure static-file playback, zero origin hits under concurrency.
         var previews = [];
-        document.querySelectorAll('.video-card[data-src]').forEach(function(card){
+        document.querySelectorAll('.video-card[data-prev]').forEach(function(card){
             var v = card.querySelector('.hover-preview');
             if (!v) return;
             previews.push({ card: card, v: v });
         });
 
         if (previews.length && ('HTMLVideoElement' in window)) {
-            var SEG_MS = 500; // play ~0.5s per chunk
             var active = null;
-            var tmr = null;
 
-            function buildTimes(d){
-                var times = [];
-                for (var i = 0; i < 10; i++) {
-                    var r = 0.95 - i * (0.9 / 9); // 95% → 5%, end to start
-                    times.push(Math.max(0, d * r));
-                }
-                return times;
-            }
-
-            function nextSeg(){
-                var a = active; if (!a) return;
-                a.idx = (a.idx + 1) % a.times.length;
-                a.segStart = a.times[a.idx];
-                a.v.currentTime = a.segStart;
-                var p = a.v.play();
-                if (p && p.catch) p.catch(function(){});
-                if (tmr) clearTimeout(tmr);
-                tmr = setTimeout(nextSeg, 2500); // stall safety
+            function loadingFor(card){
+                return card ? card.querySelector('.hover-loading') : null;
             }
 
             function start(card){
                 stop();
                 var v = card.querySelector('.hover-preview');
                 if (!v) return;
-                active = { v: v, times: [], idx: 0, segStart: 0 };
+                var ld = loadingFor(card);
+                active = { v: v, ld: ld };
+                // keep the video invisible until it's actually playing, so the
+                // thumbnail (and the translucent loading overlay) stay visible
+                v.classList.remove('playing');
+                if (ld) ld.classList.add('show');
                 v.muted = true;
-                v.setAttribute('src', card.getAttribute('data-src'));
+                v.loop = true;
+                v.setAttribute('src', card.getAttribute('data-prev'));
                 v.load();
-                v.ontimeupdate = function(){
-                    var a = active;
-                    if (!a || a.v !== v) return;
-                    if (a.times.length && v.currentTime - a.segStart >= 0.45) nextSeg();
+                v.onplaying = function(){
+                    v.classList.add('playing');
+                    if (ld) ld.classList.remove('show');
                 };
-                v.onloadedmetadata = function(){
-                    var a = active; if (!a || a.v !== v) return;
-                    var d = v.duration;
-                    if (!isFinite(d) || d <= 0) return;
-                    a.times = buildTimes(d);
-                    a.segStart = a.times[0];
-                    v.currentTime = a.segStart;
-                    var p = v.play();
-                    if (p && p.catch) p.catch(function(){});
-                    if (tmr) clearTimeout(tmr);
-                    tmr = setTimeout(nextSeg, 2500);
-                };
+                v.onerror = function(){ if (ld) ld.classList.remove('show'); };
             }
 
             function stop(){
-                if (tmr) { clearTimeout(tmr); tmr = null; }
                 var a = active; active = null;
                 if (!a) return;
                 var v = a.v;
-                v.onloadedmetadata = null;
-                v.ontimeupdate = null;
+                if (a.ld) a.ld.classList.remove('show');
+                v.classList.remove('playing');
                 v.pause();
+                v.onplaying = null;
+                v.onerror = null;
                 v.removeAttribute('src');
                 v.load();
             }
@@ -228,15 +212,19 @@
                 p.card.addEventListener('touchcancel', stop);
             });
 
-            // Warm metadata for on-screen cards so hover starts instantly
-            var prevs = previews;
+            // Pre-warm metadata for cards entering the viewport so hover starts
+            // instantly (static-file range requests, cheap for the server).
             if ('IntersectionObserver' in window) {
                 var wob = new IntersectionObserver(function(entries){
                     entries.forEach(function(en){
                         if (en.isIntersecting) {
                             var card = en.target;
                             var v = card.querySelector('.hover-preview');
-                            if (v && v.preload !== 'metadata') { v.preload = 'metadata'; v.load(); }
+                            if (v && !v.getAttribute('src')) {
+                                v.preload = 'metadata';
+                                v.setAttribute('src', card.getAttribute('data-prev'));
+                                v.load();
+                            }
                             wob.unobserve(card);
                         }
                     });

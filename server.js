@@ -2,13 +2,15 @@
 //
 //   GET  /                    → video list (gallery)
 //   GET  /watch/:id           → the custom player page
-//   GET  /t/:token            → masked hotlink proxy (external mp4/HLS)
+//   GET  /t/:token            → masked embed proxy (external mp4/HLS)
 //   GET  /videos/:id          → local-file range streaming (byte-range seek)
+//   GET  /img/:id             → cached thumbnail (downloaded once from origin)
+//   GET  /previews/:id        → cached hover-preview clip (middle ~8s)
 //   GET  /sprites/:id.(jpg|vtt) → scrub sprite sheets for local files
 //   POST /api/ingest          → add URLs from a JSON array / TXT list (admin)
 //   POST /api/ingest/scan     → process files dropped in data/imports (admin)
 //   GET  /api/ads/preroll     → server-side VAST resolution for the pre-roll
-//   GET  /api/videos, /api/video/:id, /api/view/:id
+//   GET  /api/videos, /api/video/:id, /api/view/:id, /api/stats
 //
 // Every external source is stored as its PERMANENT URL and resolved to a fresh
 // signed stream at playback time (self-healing: expired CDN tokens never break
@@ -25,6 +27,9 @@ const transformer = require('./lib/transformer');
 const ingest = require('./lib/ingest');
 const sprites = require('./lib/sprites');
 const vast = require('./lib/vast');
+const thumb = require('./lib/thumb');
+const preview = require('./lib/preview');
+const stats = require('./lib/stats');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
@@ -62,10 +67,43 @@ app.use(express.urlencoded({ extended: true }));
 // localhost-only admin: no password required
 app.use((req, res, next) => { req.isAdmin = true; next(); });
 
+// operational stats (request counts, status mix, live viewers)
+app.use(stats.middleware);
+
 // ── library in-memory cache ─────────────────────────────────────────────────
 let library = ingest.loadLibrary();
 let fileSizes = {};
 let viewWriteTimer = null;
+
+// cached thumbnail + hover-preview stores (see lib/thumb.js, lib/preview.js)
+thumb.init(CONFIG);
+preview.init(CONFIG);
+
+// ── hover-preview clip builder: fill the disk cache one video at a time ────
+// External clips download the stream once (throttled via the transformer),
+// then get cut locally; after the library is cached the origin is never hit
+// again. Runs sequentially so the origin never sees concurrent bulk fetches.
+const previewBuilding = new Set();
+const previewFailed = new Map(); // video id → failure reason (for /api/stats)
+
+function buildPreviewFor(v) {
+  if (previewBuilding.has(v.id) || previewFailed.has(v.id) || preview.hasPreview(v.id)) return Promise.resolve();
+  previewBuilding.add(v.id);
+  const job = (v.filePath && fs.existsSync(v.filePath))
+    ? preview.buildLocal(v.filePath, v.id)
+    : preview.buildExternal(v, v.id);
+  return Promise.resolve(job)
+    .then(() => console.log(`[preview] built ${v.id}`))
+    .catch((e) => { previewFailed.set(v.id, e.message); console.log(`[preview] skipped ${v.id} — ${e.message}`); })
+    .finally(() => previewBuilding.delete(v.id));
+}
+
+function pumpPreviews() {
+  const next = library.find(v => (v.source || v.filePath)
+    && !preview.hasPreview(v.id) && !previewBuilding.has(v.id) && !previewFailed.has(v.id));
+  if (!next) return;
+  buildPreviewFor(next).then(pumpPreviews).catch(pumpPreviews);
+}
 
 function reload() {
   library = ingest.loadLibrary();
@@ -75,6 +113,7 @@ function reload() {
       try { fileSizes[v.id] = fs.statSync(v.filePath).size; } catch (e) {}
     }
   }
+  pumpPreviews();
 }
 reload();
 
@@ -102,14 +141,44 @@ function slim(v) {
     video: playbackFor(v),
     external: isExt || undefined,
     description: v.description || '',
-    thumbnail: v.thumbnail || '',
+    thumbnail: v.thumbnail ? '/img/' + v.id : '',
     duration: v.duration, views: v.views || 0,
     category: v.category, tags: v.tags, uploaded: v.uploaded,
     type: (v.source && v.source.type) || 'local',
     local: !isExt || undefined,
     sprites: !isExt && sprites.hasSprites(v.id) ? { img: '/sprites/' + v.id + '.jpg', vtt: '/sprites/' + v.id + '.vtt' } : undefined,
-    size: fileSizes[v.id] || undefined
+    size: fileSizes[v.id] || undefined,
+    preview: (v.source || v.filePath) ? '/previews/' + v.id : ''
   };
+}
+
+// ── shared byte-range file serving (local videos + preview clips) ──────────
+function serveRange(req, res, fp, mime) {
+  if (!fp || !fs.existsSync(fp)) return res.status(404).end();
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  res.setHeader('Accept-Ranges', 'bytes');
+  const size = fs.statSync(fp).size;
+  const range = req.headers.range;
+  if (range) {
+    const m = range.match(/bytes=(\d*)-(\d*)/);
+    if (m) {
+      let start = m[1] ? parseInt(m[1], 10) : 0;
+      let end = m[2] ? parseInt(m[2], 10) : size - 1;
+      if (isNaN(start)) { start = Math.max(0, size - end); end = size - 1; }
+      if (start > end || start >= size) return res.status(416).set('Content-Range', `bytes */${size}`).end();
+      end = Math.min(end, size - 1);
+      res.status(206);
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${size}`);
+      res.setHeader('Content-Length', end - start + 1);
+      res.setHeader('Content-Type', mime);
+      fs.createReadStream(fp, { start, end }).pipe(res);
+      return;
+    }
+  }
+  res.setHeader('Content-Length', size);
+  res.setHeader('Content-Type', mime);
+  fs.createReadStream(fp).pipe(res);
 }
 
 // ── routes ──────────────────────────────────────────────────────────────────
@@ -147,7 +216,7 @@ app.get('/watch/:id', (req, res) => {
   });
 });
 
-// masked hotlink proxy
+// masked embed proxy
 app.get('/t/:token', (req, res) => {
   const source = transformer.verifyToken(req.params.token);
   if (!source) return res.status(403).set('X-Robots-Tag', 'noindex').json({ error: 'invalid token' });
@@ -177,31 +246,29 @@ else{v.setAttribute('src',src);v.load();}})();
 // local file range streaming (byte-range seek support)
 app.get('/videos/:id', (req, res) => {
   const v = getVideo(req.params.id);
-  if (!v || !v.filePath || !fs.existsSync(v.filePath)) return res.status(404).end();
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
-  res.setHeader('Accept-Ranges', 'bytes');
-  const size = fs.statSync(v.filePath).size;
-  const range = req.headers.range;
-  if (range) {
-    const m = range.match(/bytes=(\d*)-(\d*)/);
-    if (m) {
-      let start = m[1] ? parseInt(m[1], 10) : 0;
-      let end = m[2] ? parseInt(m[2], 10) : size - 1;
-      if (isNaN(start)) { start = Math.max(0, size - end); end = size - 1; }
-      if (start > end || start >= size) return res.status(416).set('Content-Range', `bytes */${size}`).end();
-      end = Math.min(end, size - 1);
-      res.status(206);
-      res.setHeader('Content-Range', `bytes ${start}-${end}/${size}`);
-      res.setHeader('Content-Length', end - start + 1);
-      res.setHeader('Content-Type', 'video/mp4');
-      fs.createReadStream(v.filePath, { start, end }).pipe(res);
-      return;
-    }
+  if (!v || !v.filePath) return res.status(404).end();
+  serveRange(req, res, v.filePath, 'video/mp4');
+});
+
+// hover-preview clip (built once from the middle of the video, served as a
+// static file with range support — zero origin hits for hover previews)
+app.get('/previews/:id', (req, res) => {
+  const id = String(req.params.id || '').replace(/\.[a-z0-9]+$/i, '');
+  const v = getVideo(id);
+  if (!v) return res.status(404).end();
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  if (preview.hasPreview(id)) return serveRange(req, res, preview.fileFor(id), 'video/mp4');
+  // Not cached yet: local files build in seconds, so wait and serve; external
+  // sources are built by the background pump — kick it and fall back to 404
+  // (the client just shows the thumbnail until the clip is ready).
+  if (v.filePath && fs.existsSync(v.filePath)) {
+    buildPreviewFor(v)
+      .then(() => serveRange(req, res, preview.fileFor(id), 'video/mp4'))
+      .catch(() => res.status(404).end());
+    return;
   }
-  res.setHeader('Content-Length', size);
-  res.setHeader('Content-Type', 'video/mp4');
-  fs.createReadStream(v.filePath).pipe(res);
+  if (v.source && !previewBuilding.has(id)) buildPreviewFor(v);
+  res.status(404).end();
 });
 
 // sprite sheets
@@ -222,6 +289,12 @@ app.get('/api/video/:id', (req, res) => {
   const v = getVideo(req.params.id);
   if (!v) return res.status(404).json({ error: 'not found' });
   res.json(slim(v));
+});
+
+// operational stats for the admin panel (library, caches, origin health)
+app.get('/api/stats', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(stats.snapshot(library, previewFailed, DATA_DIR));
 });
 
 app.post('/api/view/:id', (req, res) => {
@@ -296,6 +369,14 @@ app.get('/api/ads/preroll', async (req, res) => {
   } catch (e) {
     res.status(502).json({ error: 'VAST resolve failed: ' + e.message });
   }
+});
+
+// ── cached thumbnail proxy (download once from origin, then serve from disk) ─
+app.get('/img/:id', (req, res) => {
+  const id = String(req.params.id || '').replace(/\.[a-z0-9]+$/i, '');
+  const v = getVideo(id);
+  if (!v || !v.thumbnail) return res.status(404).end();
+  thumb.serve(v, res);
 });
 
 // ── admin ───────────────────────────────────────────────────────────────────
