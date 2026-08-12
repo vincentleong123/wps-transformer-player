@@ -178,9 +178,7 @@ https://another-site.com/embed/xyz
     var totalDisk = disk.thumbs + disk.previews + disk.sprites;
     grid.innerHTML =
       chip('Videos', l.total) +
-      chip('Broken', l.broken) +
       chip('Thumbs', l.thumbCached + '/' + l.thumbed) +
-      chip('Previews', l.previewCached + '/' + l.total) +
       chip('Viewers', live.inFlight) +
       chip('Req/min', (Math.round(w.reqPerMin * 10) / 10)) +
       chip('Disk', fmtBytes(totalDisk));
