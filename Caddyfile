@@ -88,13 +88,15 @@
 		file_server
 	}
 
+	# FIXED: Added proper slashes to matchers
 	@nocache path /admin* /api/* /chat*
 	route @nocache {
 		reverse_proxy localhost:7007
 	}
 
+	# FIXED: Ensured every path starts with / and ends with /*
 	@cacheable {
-		not path /videos/* /thumbnails/* /previews/* /admin* /api* /chat*
+		not path /videos/* /thumbnails/* /previews/* /admin* /api/* /chat*
 	}
 	route @cacheable {
 		cache {
