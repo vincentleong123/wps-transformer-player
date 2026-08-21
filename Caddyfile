@@ -29,13 +29,13 @@
 		file_server
 	}
 
-	@nocache path /raw/* /api/* /admin/*
+	@nocache path /raw/* /api/* /admin/* /player/*
 	route @nocache {
 		reverse_proxy localhost:7004
 	}
 
 	@cacheable {
-		not path /raw/* /api/* /admin/*
+		not path /raw/* /api/* /admin/* /player/*
 	}
 	route @cacheable {
 		cache {
@@ -89,21 +89,21 @@
 	}
 
 	# FIXED: Added proper slashes to matchers
-	@nocache path /admin* /api/* /chat*
+	@nocache path /admin* /api/* /chat* /t/* /tx/* /img*
 	route @nocache {
 		reverse_proxy localhost:7007
 	}
 
 	# FIXED: Ensured every path starts with / and ends with /*
 	@cacheable {
-		not path /videos/* /thumbnails/* /previews/* /admin* /api/* /chat*
+		not path /videos/* /thumbnails/* /previews/* /admin* /api* /chat* /t/* /img*
 	}
 	route @cacheable {
 		cache {
 			ttl 1m
 			stale 30s
 		}
-		reverse_proxy localhost:7007
+		reverse_proxy localhost:7121
 	}
 
 	@static path *.css *.js *.png *.jpg *.jpeg *.gif *.ico *.svg *.webp
@@ -162,24 +162,6 @@
 	header @static Cache-Control "public, max-age=604800, must-revalidate"
 }
 
-:8123 {
-	header {
-		X-Content-Type-Options nosniff
-		X-Frame-Options SAMEORIGIN
-		X-XSS-Protection "1; mode=block"
-		Referrer-Policy no-referrer-when-downgrade
-		Strict-Transport-Security "max-age=31536000"
-		-Server
-	}
-
-	handle {
-		encode zstd gzip
-		reverse_proxy localhost:8080 {
-			header_up X-Forwarded-Proto https
-			header_up X-Forwarded-Host xmelayu.online
-		}
-	}
-}
 
 # ── NEW: wps-transformer-player (CACHE EXTERNAL VIDEOS) ──
 :8124 {

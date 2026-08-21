@@ -7,6 +7,12 @@
   "importsFolder": "data/imports",
   "thumbnailDir": "data/thumbs",
   "previewDir": "data/previews",
+  "preview": {
+    "enabled": true,
+    "clipSec": 8,
+    "kbps": 1024,
+    "delayMs": 5000
+  },
   "autoplayNext": true,
   "scrub": {
     "cellW": 160,

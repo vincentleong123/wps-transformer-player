@@ -6,6 +6,7 @@
 //   GET  /videos/:id          → local-file range streaming (byte-range seek)
 //   GET  /img/:id             → cached thumbnail (downloaded once from origin)
 //   GET  /sprites/:id.(jpg|vtt) → scrub sprite sheets for local files
+//   GET  /previews/:id.mp4     → cached hover-preview clip (middle of video)
 //   POST /api/ingest          → add URLs from a JSON array / TXT list (admin)
 //   POST /api/ingest/scan     → process files dropped in data/imports (admin)
 //   GET  /api/ads/preroll     → server-side VAST resolution for the pre-roll
@@ -27,6 +28,7 @@ const ingest = require('./lib/ingest');
 const sprites = require('./lib/sprites');
 const vast = require('./lib/vast');
 const thumb = require('./lib/thumb');
+const preview = require('./lib/preview');
 const stats = require('./lib/stats');
 
 const DATA_DIR = path.join(__dirname, 'data');
@@ -77,6 +79,9 @@ let viewWriteTimer = null;
 // cached thumbnail store (see lib/thumb.js)
 thumb.init(CONFIG);
 
+// hover-preview clip builder + queue (see lib/preview.js)
+preview.init(CONFIG);
+
 function reload() {
   library = ingest.loadLibrary();
   fileSizes = {};
@@ -85,6 +90,7 @@ function reload() {
       try { fileSizes[v.id] = fs.statSync(v.filePath).size; } catch (e) {}
     }
   }
+  preview.enqueue(library);
 }
 reload();
 
@@ -118,6 +124,7 @@ function slim(v) {
     type: (v.source && v.source.type) || 'local',
     local: !isExt || undefined,
     sprites: !isExt && sprites.hasSprites(v.id) ? { img: '/sprites/' + v.id + '.jpg', vtt: '/sprites/' + v.id + '.vtt' } : undefined,
+    preview: preview.hasPreview(v.id) ? '/previews/' + v.id + '.mp4' : undefined,
     size: fileSizes[v.id] || undefined
   };
 }
@@ -232,6 +239,13 @@ app.get('/sprites/:file', (req, res) => {
   res.sendFile(fp);
 });
 
+// hover-preview clips (pre-cut middle-of-video mp4s, byte-range seekable)
+app.get('/previews/:file', (req, res) => {
+  const f = req.params.file;
+  if (!/^[\w-]+\.mp4$/.test(f)) return res.status(400).end();
+  serveRange(req, res, path.join(preview.getDir(), f), 'video/mp4');
+});
+
 // ── API ─────────────────────────────────────────────────────────────────────
 app.get('/api/videos', (req, res) => res.json(library.map(slim)));
 app.get('/api/video/:id', (req, res) => {
@@ -243,7 +257,7 @@ app.get('/api/video/:id', (req, res) => {
 // operational stats for the admin panel (library, caches, origin health)
 app.get('/api/stats', (req, res) => {
   res.set('Cache-Control', 'no-store');
-  res.json(stats.snapshot(library, DATA_DIR));
+  res.json({ ...stats.snapshot(library, DATA_DIR), previews: preview.status() });
 });
 
 app.post('/api/view/:id', (req, res) => {

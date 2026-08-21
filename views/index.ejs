@@ -64,7 +64,7 @@
                 <div class="video-grid" id="videoGrid" role="list" aria-label="Video gallery">
                     <% videos.forEach(function(v){ %>
                     <% var canPrev = v.preview && (!v.type || v.type !== 'hls'); %>
-                    <article class="video-card" data-search="<%= v.title.toLowerCase() %> <%= (v.tags||[]).join(' ').toLowerCase() %> <%= v.category.toLowerCase() %>" data-prev="<%= canPrev ? v.preview : '' %>" role="listitem">
+                    <article class="video-card" data-search="<%= v.title.toLowerCase() %> <%= (v.tags||[]).join(' ').toLowerCase() %> <%= v.category.toLowerCase() %>"<% if (canPrev) { %> data-prev="<%= v.preview %>"<% } %> role="listitem">
                         <a href="/watch/<%= v.id %>" class="video-link">
                             <div class="thumbnail-container">
                                 <% if (v.thumbnail) { %>
